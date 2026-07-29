@@ -69,3 +69,19 @@ Ab hum main automation code setup karenge.
 3. Is main code ko Arduino me upload kar dein.
 
 **Ab aapka system ready hai!** Jaise hi aap wahi card tap karoge, relay ON ho jayega (line active ho jayegi), aur hatate hi bijli turant kat jayegi!
+
+---
+
+## 👥 Optional: Multiple Cards Setup (Agar 1 se zyada card chalane hain)
+
+Agar aap chahte hain ki yeh system ek se zyada RFID cards par kaam kare (office ya ghar ke baki logon ke liye), toh aap repository me diye gaye **`RFID_Multiple.ino`** code ka use karein.
+
+### Kaise configure karein?
+1. Apne saare cards ko `RFID_Scanner.ino` se baari-baari scan karke unke UIDs note kar lein.
+2. Multiple cards wale code me `authorizedCards` wali list me unhe is tarah comma (,) lagakar add karte jayein:
+   ```cpp
+   byte authorizedCards[][4] = {
+     {0xA1, 0xB2, 0xC3, 0xD4},  // Pehla Card
+     {0xE5, 0xF6, 0x12, 0x34},  // Dusra Card
+     {0x78, 0x90, 0xAB, 0xCD}   // Tisra Card
+   };
