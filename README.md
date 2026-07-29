@@ -49,6 +49,19 @@ Ab aapka system ready hai! Jaise hi aap wahi card tap karoge, relay ON ho jayega
 * **GND** ➡️ Arduino GND
 * **IN (Signal)** ➡️ Arduino Pin 3
 
+## 💾 Software & Libraries Required
+
+Is project ko compile aur chalane ke liye aapko Arduino IDE me ye libraries chahiye hongi:
+
+1. **SPI Library** (Inbuilt): Yeh Arduino aur RFID reader ke beech communication (SPI protocol) ke liye use hoti hai. Ise alag se install karne ki zaroori nahi hai, yeh Arduino IDE me pehle se aati hai.
+2. **MFRC522 Library** (External): RFID Reader (RC522) se data read karne ke liye yeh sabse zaroori library hai.
+
+### How to install MFRC522 Library:
+* Arduino IDE open karein.
+* **Sketch** ➡️ **Include Library** ➡️ **Manage Libraries...** par jaayein.
+* Search baar me `MFRC522` type karein.
+* *Github Community* ya *Rufus Antoniu* wali library ko select karke **Install** par click kar dein.
+
 ---
 
 Ab aapka system ready hai! Card tap hone par appliance chalega, hatate hi band!
