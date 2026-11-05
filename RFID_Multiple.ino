@@ -1,93 +1,160 @@
+
 #include <SPI.h>
 #include <MFRC522.h>
 
+// Pin Configuration
 #define SS_PIN 10
 #define RST_PIN 9
 #define RELAY_PIN 3
 
+// Initialize RFID Reader
 MFRC522 rfid(SS_PIN, RST_PIN);
 
-// ===================================================================
-// 📢 STEP: YAHAN APNE SARE CARDS KE NUMBERS DAALEIN!
-// -------------------------------------------------------------------
-// Aap jitne chahe utne cards add kar sakte hain, bas har card ke UID ko
-// curly brackets {} me daal kar comma (,) se alag karte jayein.
-// ===================================================================
-byte authorizedCards[][4] = {
-  {0x00, 0x00, 0x00, 0x00},  // 1st Card ka UID yahan dalein
-  {0x00, 0x00, 0x00, 0x00},  // 2nd Card ka UID yahan dalein
-  {0x00, 0x00, 0x00, 0x00}   // 3rd Card ka UID yahan dalein (Aur chahiye toh comma lagakar badha sakte hain)
+// Relay Configuration
+// Assumes an active-LOW relay module
+const byte RELAY_ON = LOW;
+const byte RELAY_OFF = HIGH;
+
+// List of Authorized RFID Cards
+// Replace these example UIDs with your actual card UIDs.
+// All entries below are four-byte UIDs.
+
+const byte authorizedCards[][4] = {
+
+  {0xA1, 0xB2, 0xC3, 0xD4},  // First Card
+  {0xE5, 0xF6, 0x12, 0x34},  // Second Card
+  {0x78, 0x90, 0xAB, 0xCD}   // Third Card
+
 };
 
-// Auto-calculate kitne cards add kiye hain
-const int totalCards = sizeof(authorizedCards) / sizeof(authorizedCards[0]);
+// Automatically calculate the number of authorized cards
+const byte totalCards =
+  sizeof(authorizedCards) / sizeof(authorizedCards[0]);
 
+// Card Detection Timeout
+const unsigned long cardTimeout = 1200;
+
+// System Variables
 unsigned long lastCardPresentTime = 0;
-const unsigned long cardTimeout = 1200; 
 bool isPowerOn = false;
 
+
+// Check whether the scanned UID matches an authorized card
+bool checkMultipleUIDs(byte *scannedUID, byte scannedSize) {
+
+  // Check UID length
+  if (scannedSize != 4) {
+    return false;
+  }
+
+  // Compare scanned UID with all authorized cards
+  for (byte i = 0; i < totalCards; i++) {
+
+    bool match = true;
+
+    for (byte j = 0; j < 4; j++) {
+
+      if (scannedUID[j] != authorizedCards[i][j]) {
+        match = false;
+        break;
+      }
+    }
+
+    if (match) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+// Control the relay
+void setPower(bool state) {
+
+  digitalWrite(RELAY_PIN, state ? RELAY_ON : RELAY_OFF);
+  isPowerOn = state;
+
+  if (state) {
+    Serial.println("Authorized card detected: POWER ON");
+  } else {
+    Serial.println("Card removed or timed out: POWER OFF");
+  }
+}
+
+
 void setup() {
+
   Serial.begin(9600);
+
+  // Initialize relay in OFF state
+  digitalWrite(RELAY_PIN, RELAY_OFF);
+  pinMode(RELAY_PIN, OUTPUT);
+
+  // Initialize SPI communication and RFID reader
   SPI.begin();
   rfid.PCD_Init();
 
-  pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH); 
+  delay(50);
 
-  Serial.println("======================================");
-  Serial.println("MULTIPLE KEYCARD SYSTEM INITIALIZED");
+  Serial.println("====================================");
+  Serial.println("SMART RFID POWER SAVER");
+  Serial.println("MULTIPLE CARD ACCESS SYSTEM");
+  Serial.println("====================================");
+
   Serial.print("Total Authorized Cards: ");
   Serial.println(totalCards);
-  Serial.println("======================================");
+
+  Serial.println("System initialized successfully.");
+  Serial.println("Waiting for an authorized RFID card...");
 }
 
+
 void loop() {
-  rfid.PCD_Init();
 
   byte bufferATQA[2];
   byte bufferSize = sizeof(bufferATQA);
 
-  if (rfid.PICC_WakeupA(bufferATQA, &bufferSize) == MFRC522::STATUS_OK) {
-    if (rfid.PICC_ReadCardSerial()) {
-      
-      // Yahan hum check kar rahe hain ki scanned card hamari list me se kisi se match hota hai ya nahi
-      if (checkMultipleUIDs(rfid.uid.uidByte)) {
-        lastCardPresentTime = millis(); 
+  // Check for an RFID card
+  if (rfid.PICC_WakeupA(bufferATQA, &bufferSize) ==
+      MFRC522::STATUS_OK) {
 
+    // Read card serial number
+    if (rfid.PICC_ReadCardSerial()) {
+
+      // Verify the scanned card
+      if (checkMultipleUIDs(
+            rfid.uid.uidByte,
+            rfid.uid.size)) {
+
+        // Update last authorized card detection time
+        lastCardPresentTime = millis();
+
+        // Turn ON relay if currently OFF
         if (!isPowerOn) {
-          digitalWrite(RELAY_PIN, LOW); 
-          isPowerOn = true;
-          Serial.println("--> Authorized Card Resting: POWER ON");
+          setPower(true);
         }
+
       } else {
-        Serial.println("--> Unauthorized Card Detected! Access Denied.");
+
+        Serial.println("Unauthorized RFID card detected.");
+        Serial.println("Access Denied.");
+
       }
-      
+
+      // Stop communication with the current card
       rfid.PICC_HaltA();
       rfid.PCD_StopCrypto1();
     }
   }
 
-  if (isPowerOn && (millis() - lastCardPresentTime > cardTimeout)) {
-    digitalWrite(RELAY_PIN, HIGH); 
-    isPowerOn = false;
-    Serial.println("--> Card Removed: POWER OFF");
+  // Turn OFF relay when no authorized card
+  // has been detected within the timeout period
+  if (isPowerOn &&
+      (millis() - lastCardPresentTime >= cardTimeout)) {
+
+    setPower(false);
   }
 
-  delay(150); 
-}
-
-// Function jo scanned card ko hamari puri list se match karta hai
-bool checkMultipleUIDs(byte *scanned) {
-  for (int i = 0; i < totalCards; i++) {
-    bool match = true;
-    for (byte j = 0; j < 4; j++) {
-      if (scanned[j] != authorizedCards[i][j]) {
-        match = false;
-        break;
-      }
-    }
-    if (match) return true; // Agar kisi ek bhi card se match ho gaya toh true return karega
-  }
-  return false; // Agar kisi se match nahi hua
+  delay(100);
 }
